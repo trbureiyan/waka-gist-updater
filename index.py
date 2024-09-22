@@ -4,11 +4,10 @@ This script fetches WakaTime stats and updates a GitHub Gist with the latest dat
 """
 
 import os
-import re
 import logging as logger
 from base64 import b64encode
 from datetime import datetime
-from github import Github, InputGitAuthor
+from github import Github
 from requests import get as rq_get
 from requests.exceptions import RequestException
 
@@ -35,7 +34,14 @@ class WakaBox:
     def fetch_stats(self):
         """Fetch WakaTime stats."""
         encoded_key = b64encode(self.waka_key.encode()).decode()
-        response = rq_get(
+        try:
+            response = rq_get(f"{self.api_base_url}/{self.time_range}", headers={"Authorization": f"Basic {encoded_key}"})
+            response.raise_for_status()  # Verify if the response was successful
+            return response.json().get("data")
+        except RequestException as e:
+            logger.error(f"Failed to fetch stats: {e}")
+            raise
+        """response = rq_get(
             f"{self.api_base_url}/{self.time_range}",
             headers={"Authorization": f"Basic {encoded_key}"},
         )
@@ -43,6 +49,7 @@ class WakaBox:
             logger.error(f"Failed to fetch stats: {response.status_code} - {response.text}")
             raise RequestException("Failed to fetch WakaTime stats.")
         return response.json().get("data")
+        """
 
     def make_title(self, start, end):
         """Create title for the stats."""
@@ -76,20 +83,43 @@ class WakaBox:
 
     def update_gist(self, content):
         """Update the GitHub Gist with the new content."""
+        try:
+            gh = Github(self.gh_token)
+            gist = gh.get_gist(self.gist_id)
+            filename = list(gist.files.keys())[0]
+            gist.edit(files={filename: {"content": content}})
+            logger.info("Gist updated successfully!")
+        except Exception as e:
+            logger.error(f"Failed to update Gist: {e}")
+        
+        """
         gh = Github(self.gh_token)
         gist = gh.get_gist(self.gist_id)
         filename = list(gist.files.keys())[0]
         gist.edit(files={filename: {"content": content}})
         logger.info("Gist updated successfully!")
+        """
 
     def run(self):
         """Main execution method."""
+        try:
+            logger.debug("Fetching WakaTime statistics.")
+            stats = self.fetch_stats()
+            logger.debug("Preparing content for Gist.")
+            content = self.prepare_content(stats)
+            logger.debug("Updating Gist with new content.")
+            self.update_gist(content)
+        except Exception as e:
+            logger.error(f"An error occurred: {e}")
+            
+        """
         logger.debug("Fetching WakaTime statistics.")
         stats = self.fetch_stats()
         logger.debug("Preparing content for Gist.")
         content = self.prepare_content(stats)
         logger.debug("Updating Gist with new content.")
         self.update_gist(content)
+        """
 
 if __name__ == "__main__":
     try:
