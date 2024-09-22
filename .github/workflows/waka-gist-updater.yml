@@ -2,6 +2,7 @@ name: Update Waka Gist
 
 on:
   schedule:
+    # runs at 12 AM UTC (5:30 AM IST)
     - cron: '0 0 * * *' # Run every day at midnight
   workflow_dispatch: # Allow manual trigger
 
@@ -11,6 +12,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
+        with:
+          template-file: .env.template 
 
       - name: Set up Python
         uses: actions/setup-python@v2
